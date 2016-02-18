@@ -71,18 +71,45 @@ void loop() {
 
 
 void tick() { //main function to update sensors and adjust flightplan
+
+
   updateSensorData();
+
   updateFlightPlan();
 }
 
 
 
 void updateSensorData() { //update sensor information
+  heading = getCompassReading();
 }
 
 
 void updateFlightPlan() { //calculate adjustments according to sensor data
+  
 }
+
+float getCompassReading() {
+  //create new event
+  sensors_event_t event; 
+  compass.getEvent(&event);
+
+  //calculate heading (Z should be level, TODO: take Z offset into consideration)
+  float newHeading = atan2(event.magnetic.y, event.magnetic.x);
+
+  //uncomment to add declination Angle
+  //float declinationAngle = 0.06;
+  //newHeading += declinationAngle;
+
+  if(newHeading < 0) newHeading += 2*PI; // Correct for when signs are reversed.
+  if(newHeading > 2*PI) newHeading -= 2*PI; // Check for wrap due to addition of declination.
+  float headingDegrees = newHeading * 180/M_PI; // Convert radians to degrees for readability.
+
+  return headingDegrees;
+}
+
+
+
 
 
 String getCurrentTime() {
@@ -104,6 +131,7 @@ String getCurrentTime() {
 String getLogInfo() {
   return String("(h:" + String(heading) + ")(e:" + String(elevation) + ")");
 }
+
 
 
 
