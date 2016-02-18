@@ -1,0 +1,1 @@
+in order to log the flight data the Java app gets Serial input over USB cable from the base station arduino
