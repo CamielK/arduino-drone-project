@@ -23,20 +23,86 @@
 //assign unique ID to compass sensor
 Adafruit_HMC5883_Unified compass = Adafruit_HMC5883_Unified(12345);
 
+//timing variables
+unsigned long lastRunTime = micros();
+int logicUpdatesPerSecond = 60;
+int updateInterval = 1000000 / logicUpdatesPerSecond;
+
 //sensor variables
 float heading; //heading in degrees from magnetic north
 float elevation = 0; //height
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600); Serial.println("(M:S:ms)  -   Log Message:");
+  Serial.print(getCurrentTime()); Serial.println("Flight Controller entered setup.");
+
+  //initialise compass sensor
+  if(!compass.begin()) {
+    Serial.print(getCurrentTime()); Serial.println(">>> CRITICAL ERROR <<< unable to connect with HMC5883");
+    while(1);
+  }
+  sensor_t sensor;
+  compass.getSensor(&sensor);
 }
 
 
 
 void loop() {
-  Serial.println("test");
-  delay(500);
+  Serial.print(getCurrentTime()); Serial.println("Flight Controller is executing.");
+  int ticks = 0;
+  long lastTimer = millis();
+  
+  while (true) {
+    if ((micros() - lastRunTime) >= updateInterval) {
+      ticks++; lastRunTime = micros();
+
+      tick();
+    }
+    if (millis() - lastTimer >= 1000) { //update counters and log information when second passes
+      lastTimer += 1000;
+      Serial.print(getCurrentTime()); Serial.print(String("(t:" + String(ticks) + ")")); Serial.println(getLogInfo());
+      ticks = 0;
+    }
+  }
+}
+
+
+
+
+void tick() { //main function to update sensors and adjust flightplan
+  updateSensorData();
+  updateFlightPlan();
+}
+
+
+
+void updateSensorData() { //update sensor information
+}
+
+
+void updateFlightPlan() { //calculate adjustments according to sensor data
+}
+
+
+String getCurrentTime() {
+  float millisSinceStartup = millis();
+  float secondsSinceStartup = int(millisSinceStartup / 1000);
+  millisSinceStartup -= (secondsSinceStartup*1000);
+  float minutesSinceStartup = int(secondsSinceStartup / 60);
+  secondsSinceStartup -= (minutesSinceStartup*60);
+  String mill = String(int(millisSinceStartup));
+  String secs = String(int(secondsSinceStartup));
+  String mins = String(int(minutesSinceStartup));
+  if (minutesSinceStartup < 10) {mins = String("0" + mins);}
+  if (secondsSinceStartup < 10) {secs = String("0" + secs);}
+  if (millisSinceStartup < 10) {mill = String("00" + mill);}
+  else if (millisSinceStartup < 100) {mill = String("0" + mill);}
+  return String(mins + ":" + secs + ":" + mill + " -   ");
+}
+
+String getLogInfo() {
+  return String("(h:" + String(heading) + ")(e:" + String(elevation) + ")");
 }
 
 
