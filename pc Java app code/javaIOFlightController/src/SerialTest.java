@@ -19,6 +19,12 @@ public class SerialTest implements SerialPortEventListener {
     private static final int TIME_OUT = 2000; // Milliseconds to block while waiting for port open
     private static final int DATA_RATE = 9600; // Default bits per second for COM port.
 
+    private static Compass compass = new Compass();
+    private int heading = 0;
+    private boolean readingHeading = false;
+    private int headingReaderIndex = 0;
+    private StringBuilder headingString = new StringBuilder();
+
     public void initialize() {
 
         CommPortIdentifier portId = null;
@@ -70,9 +76,35 @@ public class SerialTest implements SerialPortEventListener {
                 //String inputline = new DataInputStream().read();
 
                 //read ascii and print
-                if (inputNextAsciiChar == 13) {  } //carriage return
+                if (inputNextAsciiChar == 13) { compass.setHeading(heading); } //carriage return
                 else if (inputNextAsciiChar == 10) { System.out.println(""); } //new line
-                else { System.out.print(Character.toString ((char) inputNextAsciiChar)); } //convirt ascii to char and print
+                else { //convert ascii to char and print
+                    String a = Character.toString ((char) inputNextAsciiChar);
+                    System.out.print(a);
+                    if (a.equals("h")) {
+                        readingHeading = true;
+                    }
+                    if (readingHeading) {
+                        headingReaderIndex++;
+                    }
+                    if (headingReaderIndex == 2) {
+                        if (!a.equals(":")) {readingHeading = false; headingReaderIndex = 0;}
+                    }
+                    else if (headingReaderIndex > 2) {
+
+                        if (headingReaderIndex > 8 || a.equals(")")) {
+                            headingReaderIndex = 0;
+                            readingHeading = false;
+                            String newHeadingString = headingString.toString();
+                            heading = Math.round(Float.parseFloat(newHeadingString));
+                            headingString = new StringBuilder();
+                        }
+                        else {
+                            headingString.append(a);
+                        }
+                    }
+                }
+
 
             } catch (Exception e) {
                 System.err.println(e.toString());
@@ -86,11 +118,12 @@ public class SerialTest implements SerialPortEventListener {
         main.initialize();
         Thread t=new Thread() {
             public void run() {
-                //keep this app alive for 1000 seconds,
-                try {Thread.sleep(1000000);} catch (InterruptedException ie) {}
+                //keep this app alive for 1800 seconds,
+                try {Thread.sleep(1800000);} catch (InterruptedException ie) {}
             }
         };
         t.start();
         System.out.println("Started");
+
     }
 }
