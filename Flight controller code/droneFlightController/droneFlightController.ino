@@ -95,17 +95,49 @@ float getCompassReading() {
   compass.getEvent(&event);
 
   //calculate heading (Z should be level, TODO: take Z offset into consideration)
-  float newHeading = atan2(event.magnetic.y, event.magnetic.x);
+  //Serial.print("Y:"); Serial.print(event.magnetic.y); Serial.print(". X:"); Serial.print(event.magnetic.x); Serial.print(". Z:");Serial.print(event.magnetic.z); Serial.print(".");
+  float newHeading;
 
+  //correct compass
+  float xOffset = event.magnetic.x - 10; //move x axis to the left to adjust for compass centre
+  float yOffset = event.magnetic.y + 16; //move y axis to to the right to adjust for compass centre
+  
+  //split data into 4 squadrons
+  if (yOffset >= 0 && xOffset >= 0) { //NE
+	float angleRadians = atan2(yOffset, xOffset); //calculate angle
+	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
+	newHeading = 90 - angleDegrees;
+	//Serial.print("NE: heading="); Serial.println(angleDegrees);
+  }
+  else if (yOffset >= 0 && xOffset <= 0) { //NW
+	float angleRadians = atan2(yOffset, xOffset); //calculate angle
+	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
+	newHeading = (180 - angleDegrees) + 270;
+	//Serial.print("NW: heading="); Serial.println(angleDegrees);
+  }
+  else if (yOffset <= 0 && xOffset >= 0) { //SE
+	float angleRadians = atan2(yOffset, xOffset); //calculate angle
+	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
+	newHeading = abs(angleDegrees) + 90;
+	//Serial.print("SE: heading="); Serial.println(angleDegrees);
+  }
+  else if (yOffset <= 0 && xOffset <= 0) { //SW
+	float angleRadians = atan2(yOffset, xOffset); //calculate angle
+	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
+	newHeading = abs(angleDegrees) + 90;
+	//Serial.print("SW: heading="); Serial.println(angleDegrees);
+  }
+  else {
+	  newHeading = heading;
+	  Serial.println("uncaught heading");
+  }
+  
   //uncomment to add declination Angle
   //float declinationAngle = 0.06;
   //newHeading += declinationAngle;
-
-  if(newHeading < 0) newHeading += 2*PI; // Correct for when signs are reversed.
-  if(newHeading > 2*PI) newHeading -= 2*PI; // Check for wrap due to addition of declination.
-  float headingDegrees = newHeading * 180/M_PI; // Convert radians to degrees for readability.
-
-  return headingDegrees;
+  
+  //Serial.print(" Heading: "); Serial.print(headingDegrees); Serial.println(".");
+  return newHeading;
 }
 
 
