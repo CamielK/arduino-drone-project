@@ -32,14 +32,15 @@ int updateInterval = 1000000 / logicUpdatesPerSecond;
 float heading; //heading in degrees from magnetic north
 float elevation = 0; //height
 
+int loopCount = 0;
+
 
 void setup() {
-  Serial.begin(9600); Serial.println("(M:S:ms)  -   Log Message:");
-  Serial.print(getCurrentTime()); Serial.println("Flight Controller entered setup.");
+  Serial.begin(115200); Serial.println(""); Serial.println("Flight Controller entered setup.");
 
   //initialise compass sensor
   if(!compass.begin()) {
-    Serial.print(getCurrentTime()); Serial.println(">>> CRITICAL ERROR <<< unable to connect with HMC5883");
+    Serial.println(">>>ERROR<<< unable to connect with HMC5883");
     while(1);
   }
   sensor_t sensor;
@@ -49,19 +50,18 @@ void setup() {
 
 
 void loop() {
-  Serial.print(getCurrentTime()); Serial.println("Flight Controller is executing.");
+  Serial.println("Flight Controller is executing.");
   int ticks = 0;
   long lastTimer = millis();
-  
   while (true) {
+    
     if ((micros() - lastRunTime) >= updateInterval) {
       ticks++; lastRunTime = micros();
-
       tick();
     }
-    if (millis() - lastTimer >= 1000) { //update counters and log information when second passes
-      lastTimer += 1000;
-      Serial.print(getCurrentTime()); Serial.print(String("(t:" + String(ticks) + ")")); Serial.println(getLogInfo());
+    if (millis() - lastTimer >= 200) { //update counters and log information when second passes
+      lastTimer += 200;
+      sendLogMsg();
       ticks = 0;
     }
   }
@@ -72,8 +72,11 @@ void loop() {
 
 void tick() { //main function to update sensors and adjust flightplan
 
-
-  updateSensorData();
+  loopCount++;
+  if (loopCount == 10) {
+    loopCount = 0;
+    updateSensorData();
+  }
 
   updateFlightPlan();
 }
@@ -95,73 +98,54 @@ float getCompassReading() {
   compass.getEvent(&event);
 
   //calculate heading (Z should be level, TODO: take Z offset into consideration)
-  //Serial.print("Y:"); Serial.print(event.magnetic.y); Serial.print(". X:"); Serial.print(event.magnetic.x); Serial.print(". Z:");Serial.print(event.magnetic.z); Serial.print(".");
   float newHeading;
 
   //correct compass
   float xOffset = event.magnetic.x - 10; //move x axis to the left to adjust for compass centre
   float yOffset = event.magnetic.y + 16; //move y axis to to the right to adjust for compass centre
+
+  //Serial.print("Y:"); Serial.print(yOffset); Serial.print(". X:"); Serial.print(xOffset); Serial.print(". Z:");Serial.print(event.magnetic.z); Serial.print(".");
   
   //split data into 4 squadrons
   if (yOffset >= 0 && xOffset >= 0) { //NE
 	float angleRadians = atan2(yOffset, xOffset); //calculate angle
 	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
 	newHeading = 90 - angleDegrees;
-	//Serial.print("NE: heading="); Serial.println(angleDegrees);
+	//Serial.print("   NE: heading="); Serial.println(newHeading);
   }
   else if (yOffset >= 0 && xOffset <= 0) { //NW
 	float angleRadians = atan2(yOffset, xOffset); //calculate angle
 	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
 	newHeading = (180 - angleDegrees) + 270;
-	//Serial.print("NW: heading="); Serial.println(angleDegrees);
+	//Serial.print("   NW: heading="); Serial.println(newHeading);
   }
   else if (yOffset <= 0 && xOffset >= 0) { //SE
 	float angleRadians = atan2(yOffset, xOffset); //calculate angle
 	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
 	newHeading = abs(angleDegrees) + 90;
-	//Serial.print("SE: heading="); Serial.println(angleDegrees);
+	//Serial.print("   SE: heading="); Serial.println(newHeading);
   }
   else if (yOffset <= 0 && xOffset <= 0) { //SW
 	float angleRadians = atan2(yOffset, xOffset); //calculate angle
 	float angleDegrees = angleRadians * (180/M_PI); // Convert radians to degrees
 	newHeading = abs(angleDegrees) + 90;
-	//Serial.print("SW: heading="); Serial.println(angleDegrees);
+	//Serial.print("   SW: heading="); Serial.println(newHeading);
   }
   else {
 	  newHeading = heading;
-	  Serial.println("uncaught heading");
+	  Serial.println(">>>uncaught heading<<<");
   }
   
-  //uncomment to add declination Angle
-  //float declinationAngle = 0.06;
-  //newHeading += declinationAngle;
+  //Serial.print(" Heading: "); Serial.print(newHeading); Serial.println(".");
   
-  //Serial.print(" Heading: "); Serial.print(headingDegrees); Serial.println(".");
+  newHeading = 360 - newHeading;//invert heading;
   return newHeading;
 }
 
-
-
-
-
-String getCurrentTime() {
-  float millisSinceStartup = millis();
-  float secondsSinceStartup = int(millisSinceStartup / 1000);
-  millisSinceStartup -= (secondsSinceStartup*1000);
-  float minutesSinceStartup = int(secondsSinceStartup / 60);
-  secondsSinceStartup -= (minutesSinceStartup*60);
-  String mill = String(int(millisSinceStartup));
-  String secs = String(int(secondsSinceStartup));
-  String mins = String(int(minutesSinceStartup));
-  if (minutesSinceStartup < 10) {mins = String("0" + mins);}
-  if (secondsSinceStartup < 10) {secs = String("0" + secs);}
-  if (millisSinceStartup < 10) {mill = String("00" + mill);}
-  else if (millisSinceStartup < 100) {mill = String("0" + mill);}
-  return String(mins + ":" + secs + ":" + mill + " -   ");
-}
-
-String getLogInfo() {
-  return String("(h:" + String(heading) + ")(e:" + String(elevation) + ")");
+//send log message over serial
+void sendLogMsg() {
+  String logMsg = String("|h" + String(heading) + "|e" + String(elevation) + "|");
+  Serial.println(logMsg);
 }
 
 

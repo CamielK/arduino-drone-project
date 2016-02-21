@@ -8,22 +8,20 @@ import gnu.io.SerialPortEventListener;
 import java.util.Enumeration;
 
 
-public class SerialTest implements SerialPortEventListener {
+public class Main implements SerialPortEventListener {
 
     SerialPort serialPort;
     private static final String PORT_NAME = "COM3"; //arduino port name
     private BufferedReader input; //A BufferedReader which will be fed by a InputStreamReader converting the bytes into characters making the displayed results codepage independent
-    //private DataInputStream input;
 
     private OutputStream output; // The output stream to the port
     private static final int TIME_OUT = 2000; // Milliseconds to block while waiting for port open
-    private static final int DATA_RATE = 9600; // Default bits per second for COM port.
+    private static final int DATA_RATE = 115200; // Default bits per second for COM port.
 
-    private static Compass compass = new Compass();
+    private static Logger logger = new Logger();
+    private static JFrameGUI window = new JFrameGUI();
+    private static Metrics metrics = new Metrics();
     private int heading = 0;
-    private boolean readingHeading = false;
-    private int headingReaderIndex = 0;
-    private StringBuilder headingString = new StringBuilder();
 
     public void initialize() {
 
@@ -72,58 +70,55 @@ public class SerialTest implements SerialPortEventListener {
     public synchronized void serialEvent(SerialPortEvent oEvent) {
         if (oEvent.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
-                int inputNextAsciiChar = input.read(); //read raw ascii data from input line
-                //String inputline = new DataInputStream().read();
 
-                //read ascii and print
-                if (inputNextAsciiChar == 13) { compass.setHeading(heading); } //carriage return
-                else if (inputNextAsciiChar == 10) { System.out.println(""); } //new line
-                else { //convert ascii to char and print
-                    String a = Character.toString ((char) inputNextAsciiChar);
-                    System.out.print(a);
-                    if (a.equals("h")) {
-                        readingHeading = true;
-                    }
-                    if (readingHeading) {
-                        headingReaderIndex++;
-                    }
-                    if (headingReaderIndex == 2) {
-                        if (!a.equals(":")) {readingHeading = false; headingReaderIndex = 0;}
-                    }
-                    else if (headingReaderIndex > 2) {
+                String message = input.readLine();
+                logger.writeLogLine(message);
 
-                        if (headingReaderIndex > 8 || a.equals(")")) {
-                            headingReaderIndex = 0;
-                            readingHeading = false;
-                            String newHeadingString = headingString.toString();
-                            heading = Math.round(Float.parseFloat(newHeadingString));
-                            headingString = new StringBuilder();
-                        }
-                        else {
-                            headingString.append(a);
-                        }
+                if(message != "") {
+                    if (message.substring(0,2).equals("|h")) {//check if its a logmessage. logmessage has format '|h0|e0|'
+                        String headingString = message.substring(2,message.indexOf("|e"));
+                        String elevationString = message.substring((message.indexOf("|e")+2),message.indexOf("|",(message.indexOf("|e")+2)));
+                        //System.out.println(headingString + "   " + elevationString);
+
+                        heading = Math.round(Float.parseFloat(headingString));
+                        metrics.setHeading(heading);
+
+
+                        metrics.setThrottleNW(20);metrics.setThrottleNE(30);metrics.setThrottleSW(10);metrics.setThrottleSE(25);
+
                     }
                 }
-
-
             } catch (Exception e) {
                 System.err.println(e.toString());
             }
         }
-        // Ignore all other eventTypes, TODO: consider the other ones.
     }
 
     public static void main(String[] args) throws Exception {
-        SerialTest main = new SerialTest();
+        Main main = new Main();
         main.initialize();
-        Thread t=new Thread() {
+        Thread t = new Thread() {
             public void run() {
-                //keep this app alive for 1800 seconds,
-                try {Thread.sleep(1800000);} catch (InterruptedException ie) {}
+                boolean running = true;
+                long lastTime = System.nanoTime(); //save start time in nanoseconds since epoch
+                double nsPerTick = 1000000000D/20D; //nano seconds per tick (60TPS)
+                double delta = 0;
+
+                while (running) {
+
+                    long now = System.nanoTime(); //save current time in nanoseconds
+                    delta += (now-lastTime)/nsPerTick; //get difference between start time and current time. devide by nsPerTick to get the passed ammount of a tick. this is added to delta
+                    lastTime = now; //update last run time to current run time
+
+                    while (delta >= 1) { //when delta becomes greater than 1, a tick has passed
+                        delta -= 1;
+                    }
+
+                }
             }
         };
         t.start();
-        System.out.println("Started");
+        System.out.println("Java app started");
 
     }
 }
