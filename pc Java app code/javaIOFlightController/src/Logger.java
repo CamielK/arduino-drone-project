@@ -45,7 +45,7 @@ public class Logger {
         }
     }
 
-    private String getTimestamp() {
+    public String getTimestamp() {
         long timeSinceStart = System.currentTimeMillis() - startTime;
         SimpleDateFormat sdf = new SimpleDateFormat("mm:ss:SSS");
         return sdf.format(new Date(timeSinceStart));

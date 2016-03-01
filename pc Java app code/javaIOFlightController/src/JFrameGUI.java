@@ -1,6 +1,7 @@
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
@@ -11,10 +12,12 @@ import java.nio.Buffer;
 /**
  * Created by Camiel on 21-Feb-16.
  */
-public class JFrameGUI extends JPanel {
+public class JFrameGUI extends JPanel implements ActionListener {
 
     private final JFrame window;
     private static Metrics metrics = new Metrics();
+    private static Logger logger = new Logger();
+    private static String conStatus = "No connection";
 
     BufferedImage compassImg = null;
     BufferedImage backgroundImg = null;
@@ -29,6 +32,7 @@ public class JFrameGUI extends JPanel {
 
 
     public JFrameGUI() {
+        //load images
         compassImg = loadImg("images/compass.png");
         backgroundImg = loadImg("images/GUI.png");
         airspeedImg = loadImg("images/airspeed.png");
@@ -38,16 +42,55 @@ public class JFrameGUI extends JPanel {
         pointLImg = loadImg("images/pointL.png");
         pointRImg = loadImg("images/pointR.png");
 
+        //init JFrame
         window = new JFrame();
-        window.setSize(1200, 1000);
+        window.setSize(1200, 1050);
         window.setResizable(false);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setFocusable(true);
         window.setLocationRelativeTo(null);
         window.setTitle("Drone UI");
-        window.setVisible(true);
 
+        //create options menu
+        JMenuBar menuBar = new JMenuBar();
+
+        JMenu menu = new JMenu("Options"); menu.setMnemonic(KeyEvent.VK_A);
+        menu.getAccessibleContext().setAccessibleDescription("Options and preferences");
+        menuBar.add(menu);
+        JMenuItem menuItem;
+        menuItem = new JMenuItem("Preferences", KeyEvent.VK_G);
+        menuItem.addActionListener(this); menuItem.setActionCommand("Preferences");
+        menu.add(menuItem);
+        menuItem = new JMenuItem("Reconnect", KeyEvent.VK_G);
+        menuItem.addActionListener(this); menuItem.setActionCommand("Reconnect");
+        menu.add(menuItem);
+
+        //create replay menu
+        menu = new JMenu("Replay"); menu.setMnemonic(KeyEvent.VK_D);
+        menu.getAccessibleContext().setAccessibleDescription("Replay flight logs");
+        menuBar.add(menu);
+        menuItem = new JMenuItem("Load logfile", KeyEvent.VK_T);
+        menuItem.addActionListener(this); menuItem.setActionCommand("Load logfile");
+        menu.add(menuItem);
+        menuItem = new JMenuItem("Go to time", KeyEvent.VK_B);
+        menuItem.addActionListener(this); menuItem.setActionCommand("Jump");
+        menu.add(menuItem);
+        menuItem = new JMenuItem("Go to next logline", KeyEvent.VK_H);
+        menuItem.addActionListener(this); menuItem.setActionCommand("Next logline");
+        menu.add(menuItem);
+        JMenuItem menuItemPause = new JMenuItem("Pause", KeyEvent.VK_B);
+        menuItemPause.addActionListener(this); menuItemPause.setActionCommand("Pause");
+        menu.add(menuItemPause);
+        JMenuItem menuItemPlay = new JMenuItem("Play", KeyEvent.VK_S);
+        menuItemPlay.addActionListener(this); menuItemPlay.setActionCommand("Play");
+        menu.add(menuItemPlay);
+
+
+        //add menu to jframe and set jframe to visible
+        window.setJMenuBar(menuBar);
+        window.setVisible(true);
         window.add(this);
+        logger = new Logger();
     }
 
     @Override
@@ -78,14 +121,19 @@ public class JFrameGUI extends JPanel {
         int throttleSW = (int) metrics.getThrottleSW(); g2d.fillRect(52,949-(2*throttleSW),50,2*throttleSW); g2d.drawString(Integer.toString(throttleSW) + "%", 146, 857);
 
         //draw airspeed meter
-        float airspeed = metrics.getAirspeed(); // 0 x1:
+        float airspeed = metrics.getAirspeed(); //
         g2d.drawImage(airspeedImg, 530, 100, 580, 400, 20, 2499, 70, 2800, null);
         g2d.drawImage(pointLImg,565,233,null);
 
         //draw altidude meter
-        float elevation = metrics.getElevation(); // 0 x1:
+        float elevation = metrics.getElevation(); //
         g2d.drawImage(elevationImg, 1085, 100, 1135, 400, 0, 2499, 50, 2800, null);
         g2d.drawImage(pointRImg,1068,234,null);
+
+        //draw elapsed time
+        g2d.setColor(Color.YELLOW);
+        g2d.drawString("T+" + logger.getTimestamp(), 50, 487);
+        g2d.drawString("Connection status: " + conStatus, 50, 502);
 
         repaint();
     }
@@ -100,4 +148,28 @@ public class JFrameGUI extends JPanel {
         }
         return img;
     }
+
+    public void setConnectionStatus(String status) {
+        this.conStatus = status;
+    }
+
+    public void actionPerformed(ActionEvent e) {
+        if ("Preferences".equals(e.getActionCommand())) {
+        }
+        else if ("Reconnect".equals(e.getActionCommand())) {
+            SerialController controller = new SerialController();
+            controller.initialize();
+        }
+        else if ("Load logfile".equals(e.getActionCommand())) {
+        }
+        else if ("Jump".equals(e.getActionCommand())) {
+        }
+        else if ("Next logline".equals(e.getActionCommand())) {
+        }
+        else if ("Pause".equals(e.getActionCommand())) {
+        }
+        else if ("Play".equals(e.getActionCommand())) {
+        }
+    }
+
 }

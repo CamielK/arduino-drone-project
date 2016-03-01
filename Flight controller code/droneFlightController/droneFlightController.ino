@@ -20,6 +20,11 @@
 #include <Adafruit_Sensor.h> //used for compass module
 #include <Adafruit_HMC5883_U.h> //used for compass module
 
+
+//defines
+#define trigPin 13
+#define echoPin 12
+
 //assign unique ID to compass sensor
 Adafruit_HMC5883_Unified compass = Adafruit_HMC5883_Unified(12345);
 
@@ -45,6 +50,9 @@ void setup() {
   }
   sensor_t sensor;
   compass.getSensor(&sensor);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
 }
 
 
@@ -85,6 +93,7 @@ void tick() { //main function to update sensors and adjust flightplan
 
 void updateSensorData() { //update sensor information
   heading = getCompassReading();
+  elevation = getSonarReading();
 }
 
 
@@ -141,6 +150,25 @@ float getCompassReading() {
   newHeading = 360 - newHeading;//invert heading;
   return newHeading;
 }
+
+
+//get data from sonar
+float getSonarReading() {
+  long duration, distance;
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration / 58.2; //(duration/2) / 29.1;
+
+  if (distance >= 200) { //return 0 when out of range
+    distance = 0;
+  }
+  return distance;
+}
+
 
 //send log message over serial
 void sendLogMsg() {
