@@ -1,7 +1,7 @@
 /****************************************************************************************
  *  
  *  Version: 0.2
- *  Date: 03-3-2016
+ *  Date: 18-2-2016
  *  Author: Camiel Kerkhofs
  *  
  *  Description: This arduino script serves as flight controller for a custom made quadcopter drone
@@ -22,10 +22,6 @@
 #include "I2Cdev.h" //used for communication with MPU6050
 #include "MPU6050_6Axis_MotionApps20.h" //used for calculating MPU6050 values
 
-//defines
-#define trigPin 13
-#define echoPin 12
-bool blinkState = false;
 
 //assign unique ID to compass sensor
 Adafruit_HMC5883_Unified compass = Adafruit_HMC5883_Unified(12345);
@@ -40,7 +36,7 @@ int updateInterval = 1000000 / logicUpdatesPerSecond;
 int loopCount = 0;
 
 //sensor variables
-float heading; //heading in degrees from magnetic north
+float heading = 0; //heading in degrees from magnetic north
 float elevation = 0; //height
 float yaw;
 float pitch;
@@ -107,12 +103,12 @@ void setup() {
     compass.getSensor(&sensor);
 
     //set custom mpu6050 offsets
-    mpu.setXGyroOffset(-18);
-    mpu.setYGyroOffset(-40);
-    mpu.setZGyroOffset(16);
-    mpu.setXAccelOffset(-2880);
-    mpu.setYAccelOffset(-110);
-    mpu.setZAccelOffset(1565);
+    mpu.setXGyroOffset(-14);//-14
+    mpu.setYGyroOffset(-37);//-37
+    mpu.setZGyroOffset(11);//11
+    mpu.setXAccelOffset(-2853);//-2854
+    mpu.setYAccelOffset(-119);//-119
+    mpu.setZAccelOffset(1554);//1554
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
@@ -143,8 +139,6 @@ void setup() {
 
 
     //configure in and outputs
-    pinMode(trigPin, OUTPUT);
-    pinMode(echoPin, INPUT);
 }
 
 
@@ -189,7 +183,7 @@ void tick() { //main function to update sensors and adjust flightplan
 
 void updateSensorData() { //update sensor information
   heading = getCompassReading();
-  elevation = getSonarReading();
+  //elevation = getSonarReading();
   getMpuReading(); //get gyro reading
 }
 
@@ -254,19 +248,6 @@ float getCompassReading() {
 
 //get data from sonar
 float getSonarReading() {
-  long duration, distance;
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = duration / 58.2; //(duration/2) / 29.1;
-
-  if (distance >= 200) { //return 0 when out of range
-    distance = 0;
-  }
-  return distance;
 }
 
 
