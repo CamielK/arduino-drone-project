@@ -14,7 +14,7 @@ import java.util.Enumeration;
 public class SerialController implements SerialPortEventListener {
 
     private static SerialPort serialPort;
-    private static final String PORT_NAME = "COM3"; //arduino port name
+    private static final String PORT_NAME = "COM4"; //arduino port name
     private static BufferedReader input; //A BufferedReader which will be fed by a InputStreamReader converting the bytes into characters making the displayed results codepage independent
 
     private static OutputStream output; // The output stream to the port
@@ -24,7 +24,6 @@ public class SerialController implements SerialPortEventListener {
     private static Logger logger = new Logger();
     private static JFrameGUI window = new JFrameGUI();
     private static Metrics metrics = new Metrics();
-    private int heading = 0;
 
     public void initialize() {
 
@@ -88,13 +87,24 @@ public class SerialController implements SerialPortEventListener {
                         window.setConnectionStatus("Connected to base station on port: " + PORT_NAME);
                         String headingString = message.substring(2,message.indexOf("|e"));
                         String elevationString = message.substring((message.indexOf("|e")+2),message.indexOf("|",(message.indexOf("|e")+2)));
-                        //System.out.println(headingString + "   " + elevationString);
+                        String yawString = message.substring((message.indexOf("|y")+2),message.indexOf("|",(message.indexOf("|y")+2)));
+                        String pitchString = message.substring((message.indexOf("|p")+2),message.indexOf("|",(message.indexOf("|p")+2)));
+                        String rollString = message.substring((message.indexOf("|r")+2),message.indexOf("|",(message.indexOf("|r")+2)));
+                        String m1String = message.substring((message.indexOf("|m1")+3),message.indexOf("|",(message.indexOf("|m1")+3)));
+                        String m2String = message.substring((message.indexOf("|m2")+3),message.indexOf("|",(message.indexOf("|m2")+3)));
+                        String m3String = message.substring((message.indexOf("|m3")+3),message.indexOf("|",(message.indexOf("|m3")+3)));
+                        String m4String = message.substring((message.indexOf("|m4")+3),message.indexOf("|",(message.indexOf("|m4")+3)));
+                        //System.out.println(headingString + "   " + elevationString  + "   " + yawString  + "   " + pitchString  + "   " + rollString);
 
-                        heading = Math.round(Float.parseFloat(headingString));
-                        metrics.setHeading(heading);
-
-
-                        metrics.setThrottleNW(20);metrics.setThrottleNE(30);metrics.setThrottleSW(10);metrics.setThrottleSE(25);
+                        metrics.setHeading(Math.round(Float.parseFloat(headingString)));
+                        metrics.setElevation(Math.round(Float.parseFloat(elevationString)));
+                        metrics.setYaw(Math.round(Float.parseFloat(yawString)));
+                        metrics.setPitch(Math.round(Float.parseFloat(pitchString)));
+                        metrics.setRoll(Math.round(Float.parseFloat(rollString)));
+                        metrics.setThrottleNW(Math.round(Float.parseFloat(m1String)));
+                        metrics.setThrottleNE(Math.round(Float.parseFloat(m2String)));
+                        metrics.setThrottleSE(Math.round(Float.parseFloat(m3String)));
+                        metrics.setThrottleSW(Math.round(Float.parseFloat(m4String)));
 
                     }
                 }

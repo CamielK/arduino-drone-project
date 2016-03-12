@@ -7,7 +7,6 @@ import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.Buffer;
 
 /**
  * Created by Camiel on 21-Feb-16.
@@ -27,6 +26,9 @@ public class JFrameGUI extends JPanel implements ActionListener {
     BufferedImage pointDImg = null;
     BufferedImage pointLImg = null;
     BufferedImage pointRImg = null;
+    BufferedImage rollImg = null;
+    BufferedImage yawMappedImg = null;
+    BufferedImage pitchImg = null;
     AffineTransform tx = AffineTransform.getRotateInstance(metrics.getHeading(), 150, 150);
     AffineTransformOp op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR);
 
@@ -37,10 +39,13 @@ public class JFrameGUI extends JPanel implements ActionListener {
         backgroundImg = loadImg("images/GUI.png");
         airspeedImg = loadImg("images/airspeed.png");
         elevationImg = loadImg("images/elevation.png");
-        headingImg = loadImg("images/heading.png");
+        headingImg = loadImg("images/yaw.png");
         pointDImg = loadImg("images/pointD.png");
         pointLImg = loadImg("images/pointL.png");
         pointRImg = loadImg("images/pointR.png");
+        rollImg = loadImg("images/roll.png");
+        yawMappedImg = loadImg("images/yawMapped.png");
+        pitchImg = loadImg("images/pitch.png");
 
         //init JFrame
         window = new JFrame();
@@ -100,10 +105,29 @@ public class JFrameGUI extends JPanel implements ActionListener {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         //draw yaw circle
-        tx = AffineTransform.getRotateInstance(Math.toRadians (360 - metrics.getHeading()), 250, 250); //rotates coordinates around an anchor point
+        tx = AffineTransform.getRotateInstance(Math.toRadians (360 - metrics.getYaw()), 250, 250); //rotates coordinates around an anchor point
         op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR);
         g2d.drawImage(op.filter(headingImg, null),587,387,null);
         g2d.drawImage(pointDImg,823,374,null);
+
+        //draw yaw, pitch and roll
+        //pitch
+        float pitch = metrics.getPitch();
+        int yOffset = (20/10) * (int)pitch;
+        g2d.drawImage(pitchImg,634,103,1034,303,0,400-yOffset,400,600-yOffset,null);
+
+        //roll
+        tx = AffineTransform.getRotateInstance(Math.toRadians (metrics.getRoll()), 100, 100); //rotates coordinates around an anchor point
+        op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR);
+        g2d.drawImage(op.filter(rollImg, null),734,103,null);
+
+        //yaw
+        float yaw = metrics.getYaw();
+        int xOffset = (200/180) * (int)yaw;
+        g2d.drawImage(yawMappedImg,634,153,1034,253,200+xOffset,0,600+xOffset,100,null);
+
+
+
 
         //draw main background
         g2d.drawImage(backgroundImg,0,0,null);
@@ -122,7 +146,7 @@ public class JFrameGUI extends JPanel implements ActionListener {
 
         //draw airspeed meter
         float airspeed = metrics.getAirspeed(); //
-        g2d.drawImage(airspeedImg, 530, 100, 580, 400, 20, 2499, 70, 2800, null);
+        g2d.drawImage(airspeedImg, 530, 100, 580, 400, 20, 2499, 70, 2800,null);
         g2d.drawImage(pointLImg,565,233,null);
 
         //draw altidude meter
