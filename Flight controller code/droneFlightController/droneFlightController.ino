@@ -21,6 +21,7 @@
 #include <Adafruit_HMC5883_U.h> //used for compass module
 #include "I2Cdev.h" //used for communication with MPU6050
 #include "MPU6050_6Axis_MotionApps20.h" //used for calculating MPU6050 values
+#include <Servo.h> //used to adjust ESC settings (rotor speeds)
 
 
 //assign unique ID to compass sensor
@@ -28,6 +29,12 @@ Adafruit_HMC5883_Unified compass = Adafruit_HMC5883_Unified(12345);
 
 //initiate mpu at default adress 0x68 (use 'MPU6050 mpu(0x69);' for alternative adress)
 MPU6050 mpu;
+
+//initiate rotor ESC's
+Servo ESCm1; // front left rotor
+Servo ESCm2; // front right rotor
+Servo ESCm3; // back right rotor
+Servo ESCm4; // back left rotor
 
 //timing variables
 unsigned long lastRunTime = micros();
@@ -38,9 +45,15 @@ int loopCount = 0;
 //sensor variables
 float heading = 0; //heading in degrees from magnetic north
 float elevation = 0; //height
-float yaw;
-float pitch;
-float roll;
+float yaw = 0;
+float pitch = 0;
+float roll = 0;
+float m1Throttle = 0; //front left rotor
+float m2Throttle = 0; //front right rotor
+float m3Throttle = 0; //back right rotor
+float m4Throttle = 0; //back left rotor
+float currentStableThrottle = 50; //used to store the current stable throttle level. forms a baseline for rotor adjustment
+
 
 // MPU control/status variables
 bool dmpReady = false;  // set true if DMP init was successful
@@ -102,6 +115,12 @@ void setup() {
     sensor_t sensor;
     compass.getSensor(&sensor);
 
+    //initialize rotor ESC adresses
+//    ESCm1.attach(7);
+//    ESCm2.attach(6);
+//    ESCm3.attach(5);
+//    ESCm4.attach(4);
+
     //set custom mpu6050 offsets
     mpu.setXGyroOffset(-14);//-14
     mpu.setYGyroOffset(-37);//-37
@@ -110,7 +129,7 @@ void setup() {
     mpu.setYAccelOffset(-119);//-119
     mpu.setZAccelOffset(1554);//1554
 
-    // make sure it worked (returns 0 if so)
+    // make sure mpu6050 setup was succesful (returns 0 if so)
     if (devStatus == 0) {
         // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
@@ -153,12 +172,13 @@ void loop() {
   long lastTimer = millis();
   while (true) {
     
-    if ((micros() - lastRunTime) >= updateInterval) {
+    //if ((micros() - lastRunTime) >= updateInterval) {
       ticks++; lastRunTime = micros();
       tick();
-    }
+    //}
     if (millis() - lastTimer >= 200) { //update counters and log information when second passes
       lastTimer += 200;
+      Serial.println(ticks);
       sendLogMsg();
       ticks = 0;
     }
@@ -170,13 +190,11 @@ void loop() {
 
 void tick() { //main function to update sensors and adjust flightplan
 
-  //loopCount++;
-  //if (loopCount == 10) {
-  //  loopCount = 0;
-    updateSensorData();
-  //}
+  updateSensorData();
 
   updateFlightPlan();
+
+  checkBaseStationFeedback();
 }
 
 
@@ -189,11 +207,66 @@ void updateSensorData() { //update sensor information
 
 
 void updateFlightPlan() { //calculate adjustments according to sensor data
-  
+
+  calculateRotorAdjustments();
+
+  //sendAdjustedRotorSpeed();
 }
 
 
+//calculate individual rotor adjustments based on latest sensor readings
+void calculateRotorAdjustments() {
+  float m1New, m2New, m3New, m4New;
 
+  m1New = currentStableThrottle 
+  + (-roll) //roll
+  + (-pitch) //pitch
+  + (0); //yaw
+  m2New = currentStableThrottle
+  + (roll) //roll
+  + (-pitch) //pitch
+  + (0); //yaw
+  m3New = currentStableThrottle
+  + (roll) //roll
+  + (pitch) //pitch
+  + (0); //yaw
+  m4New = currentStableThrottle
+  + (-roll) //roll
+  + (pitch) //pitch
+  + (0); //yaw
+
+  if (m1New > 100) { m1New = 100; } if (m2New > 100) { m2New = 100; } if (m3New > 100) { m3New = 100; } if (m4New > 100) { m4New = 100; }
+  if (m1New < 0) { m1New = 0; } if (m2New < 0) { m2New = 0; } if (m3New < 0) { m3New = 0; } if (m4New < 0) { m4New = 0; }
+  
+  m1Throttle = m1New;
+  m2Throttle = m2New;
+  m3Throttle = m3New;
+  m4Throttle = m4New;
+}
+
+
+//sends the new throttle values to the rotors
+void sendAdjustedRotorSpeed() {
+  //map throttle levels and set new servo speeds (throttles are 0 to 100%)
+  ESCm1.write(map(m1Throttle, 0, 1023, 0, 100));
+  ESCm2.write(map(m2Throttle, 0, 1023, 0, 100));
+  ESCm3.write(map(m3Throttle, 0, 1023, 0, 100));
+  ESCm4.write(map(m4Throttle, 0, 1023, 0, 100));
+}
+
+
+//check for controller input
+void checkBaseStationFeedback() {
+
+  //if data.available {
+  //}
+
+  //throttleInput = ;
+  //yawInput = ;
+  //rollInput = ;
+  //
+  
+}
 
 float getCompassReading() {
   //create new event
@@ -204,8 +277,8 @@ float getCompassReading() {
   float newHeading;
 
   //correct compass
-  float xOffset = event.magnetic.x - 10; //move x axis to the left to adjust for compass centre
-  float yOffset = event.magnetic.y + 16; //move y axis to to the right to adjust for compass centre
+  float xOffset = event.magnetic.x - 0; //move x axis to the left to adjust for compass centre //- 10
+  float yOffset = event.magnetic.y + 0; //move y axis to to the right to adjust for compass centre //+16
 
   //Serial.print("Y:"); Serial.print(yOffset); Serial.print(". X:"); Serial.print(xOffset); Serial.print(". Z:");Serial.print(event.magnetic.z); Serial.print(".");
   
@@ -290,7 +363,17 @@ void getMpuReading() {
 
 //send log message over serial
 void sendLogMsg() {
-  String logMsg = String("|h" + String(heading) + "|e" + String(elevation) + "|y" + String(yaw) + "|p" + String(pitch) + "|r" + String(roll) + "|");
+  String logMsg = String(
+    "|h" + String(heading) 
+  + "|e" + String(elevation) 
+  + "|y" + String(yaw) 
+  + "|p" + String(pitch) 
+  + "|r" + String(roll) 
+  + "|m1" + String(m1Throttle)
+  + "|m2" + String(m2Throttle)
+  + "|m3" + String(m3Throttle)
+  + "|m4" + String(m4Throttle)
+  + "|");
   Serial.println(logMsg);
 }
 
