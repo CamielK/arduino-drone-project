@@ -22,6 +22,8 @@
 #include "I2Cdev.h" //used for communication with MPU6050
 #include "MPU6050_6Axis_MotionApps20.h" //used for calculating MPU6050 values
 #include <Servo.h> //used to adjust ESC settings (rotor speeds)
+#include <SPI.h>
+#include "RF24.h"
 
 
 //assign unique ID to compass sensor
@@ -80,6 +82,12 @@ void dmpDataReady() {
 }
 
 
+//Create an instance for the radio, specifying the CE and CS pins.
+RF24 myRadio (9, 10);
+byte addresses[][6] = {"1Node","2Node"};
+int dataReceived;  // Data that will be received from the transmitter
+int dataTransmitted;  // Data that will be Transmitted from the transmitter
+
 
 void setup() {
     // initialize serial communication
@@ -116,10 +124,10 @@ void setup() {
     compass.getSensor(&sensor);
 
     //initialize rotor ESC adresses
-//    ESCm1.attach(7);
-//    ESCm2.attach(6);
-//    ESCm3.attach(5);
-//    ESCm4.attach(4);
+//    ESCm1.attach(11);
+//    ESCm2.attach(10);
+//    ESCm3.attach(9);
+//    ESCm4.attach(8);
 
     //set custom mpu6050 offsets
     mpu.setXGyroOffset(-14);//-14
@@ -157,7 +165,16 @@ void setup() {
     }
 
 
-    //configure in and outputs
+    //setup rf24
+    myRadio.begin();  // Start up the physical nRF24L01 Radio
+    myRadio.setChannel(108);  // Above most Wifi Channels
+    //myRadio.setPALevel(RF24_PA_MIN);
+    myRadio.setPALevel(RF24_PA_MAX);
+  
+    myRadio.openWritingPipe(addresses[0]);
+    myRadio.openReadingPipe(1, addresses[1]); // Use the first entry in array 'addresses' (Only 1 right now)
+    myRadio.startListening();
+    Serial.println("flight controller finished setup");
 }
 
 
@@ -361,8 +378,9 @@ void getMpuReading() {
 
 
 
-//send log message over serial
+//send log message
 void sendLogMsg() {
+  //send log message over serial
   String logMsg = String(
     "|h" + String(heading) 
   + "|e" + String(elevation) 
@@ -375,6 +393,35 @@ void sendLogMsg() {
   + "|m4" + String(m4Throttle)
   + "|");
   Serial.println(logMsg);
+
+
+  //send log data to base station
+  int dataSize = 9;
+  float logMsgt[dataSize]; // +x is used to identify the meaning of the float, (if ((receivedMsg - 50000)<500) {//received message is roll value})
+  logMsgt[0] = heading + 10000; //heading
+  logMsgt[1] = elevation + 20000; //elevationg
+  logMsgt[2] = yaw + 30000; //yaw
+  logMsgt[3] = pitch + 40000; //pitch
+  logMsgt[4] = roll + 50000; //roll
+  logMsgt[5] = m1Throttle + 60000; //m1Throttle
+  logMsgt[6] = m2Throttle + 70000; //m2Throttle
+  logMsgt[7] = m3Throttle + 80000; //m3Throttle
+  logMsgt[8] = m4Throttle + 90000; //m4Throttle
+
+  //Serial.print("1");
+  myRadio.stopListening();
+  //Serial.print("2");
+  int test1 = 100;
+  //Serial.print("3");
+  for (int i =0; i < dataSize; i++) {
+    if (!myRadio.write( &logMsgt[i], sizeof(logMsgt[i]))){
+        String msg = String(i)+" Failed";
+       Serial.println(msg);
+     }
+  }
+  //Serial.print("4");
+  myRadio.startListening();
+  //Serial.println("5");
 }
 
 

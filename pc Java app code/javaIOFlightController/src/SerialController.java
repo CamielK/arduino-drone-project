@@ -14,7 +14,7 @@ import java.util.Enumeration;
 public class SerialController implements SerialPortEventListener {
 
     private static SerialPort serialPort;
-    private static final String PORT_NAME = "COM4"; //arduino port name
+    private static final String PORT_NAME = "COM5"; //arduino port name
     private static BufferedReader input; //A BufferedReader which will be fed by a InputStreamReader converting the bytes into characters making the displayed results codepage independent
 
     private static OutputStream output; // The output stream to the port
