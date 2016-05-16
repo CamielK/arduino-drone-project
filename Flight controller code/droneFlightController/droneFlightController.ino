@@ -195,7 +195,7 @@ void loop() {
     //}
     if (millis() - lastTimer >= 200) { //update counters and log information when second passes
       lastTimer += 200;
-      Serial.println(ticks);
+      //Serial.println(ticks);
       sendLogMsg();
       ticks = 0;
     }

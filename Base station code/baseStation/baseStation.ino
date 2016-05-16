@@ -124,8 +124,8 @@ void checkFCInput() {
         myRadio.read( &dataReceived, sizeof(dataReceived) ); // Get the data payload (You must have defined that already!)
       }
       // DO something with the data, like print it
-      Serial.print("Data received = ");
-      Serial.print(dataReceived);
+      //Serial.print("Data received = ");
+      //Serial.print(dataReceived);
       if ((dataReceived - 10000) < 500) { heading = dataReceived - 10000; } //heading
       else if ((dataReceived - 20000) < 500) { elevation = dataReceived - 20000; } //elevation
       else if ((dataReceived - 30000) < 500) { yaw = dataReceived - 30000; } //yaw

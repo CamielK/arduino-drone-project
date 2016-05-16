@@ -18,6 +18,9 @@ public class JFrameGUI extends JPanel implements ActionListener {
     private static Logger logger = new Logger();
     private static String conStatus = "No connection";
 
+    private static JButton btn = new JButton("click me");
+    private static JButton btn2 = new JButton("click me2");
+
     BufferedImage compassImg = null;
     BufferedImage backgroundImg = null;
     BufferedImage airspeedImg = null;
@@ -90,6 +93,28 @@ public class JFrameGUI extends JPanel implements ActionListener {
         menuItemPlay.addActionListener(this); menuItemPlay.setActionCommand("Play");
         menu.add(menuItemPlay);
 
+
+//        //create test panel
+//        JPanel controlPanel = new JPanel(new GridBagLayout());
+//        controlPanel.setPreferredSize(new java.awt.Dimension(1000, 500));
+//        GridBagConstraints controlConstraints = new GridBagConstraints();
+//        controlConstraints.anchor = GridBagConstraints.NORTH;
+//        controlConstraints.insets = new Insets(1, 1, 1, 1);
+//        controlConstraints.gridx = 0;
+//        controlConstraints.gridy = 0;
+//        controlPanel.add(btn, controlConstraints);
+//        controlPanel.setOpaque(false);
+//        add(controlPanel);
+//
+//        JPanel controlPanel2 = new JPanel(new GridBagLayout());
+//        controlPanel2.setPreferredSize(new java.awt.Dimension(1000, 500));
+//        GridBagConstraints control2Constraints = new GridBagConstraints();
+//        control2Constraints.anchor = GridBagConstraints.NORTH;
+//        control2Constraints.insets = new Insets(1, 1, 1, 1);
+//        control2Constraints.gridx = 0;
+//        control2Constraints.gridy = 0;
+//        controlPanel2.add(btn2, control2Constraints);
+//        add(controlPanel2);
 
         //add menu to jframe and set jframe to visible
         window.setJMenuBar(menuBar);
