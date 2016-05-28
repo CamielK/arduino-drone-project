@@ -54,7 +54,11 @@ float m1Throttle = 0; //front left rotor
 float m2Throttle = 0; //front right rotor
 float m3Throttle = 0; //back right rotor
 float m4Throttle = 0; //back left rotor
-float currentStableThrottle = 50; //used to store the current stable throttle level. forms a baseline for rotor adjustment
+
+
+float currentStableThrottle = 40; //used to store the current stable throttle level. forms a baseline for rotor adjustment
+//throttle 40 = grounded
+//throttle 60 = heavy liftoff
 
 
 // MPU control/status variables
@@ -83,13 +87,16 @@ void dmpDataReady() {
 
 
 //Create an instance for the radio, specifying the CE and CS pins.
-RF24 myRadio (9, 10);
+RF24 myRadio (3, 4);
 byte addresses[][6] = {"1Node","2Node"};
 int dataReceived;  // Data that will be received from the transmitter
 int dataTransmitted;  // Data that will be Transmitted from the transmitter
 
 
 void setup() {
+
+  delay(3000);
+  
     // initialize serial communication
     Serial.begin(115200); Serial.println(""); Serial.println("Flight Controller entered setup.");
 
@@ -124,10 +131,10 @@ void setup() {
     compass.getSensor(&sensor);
 
     //initialize rotor ESC adresses
-//    ESCm1.attach(11);
-//    ESCm2.attach(10);
-//    ESCm3.attach(9);
-//    ESCm4.attach(8);
+    ESCm1.attach(5);
+    ESCm2.attach(10);
+    ESCm3.attach(9);
+    ESCm4.attach(8);
 
     //set custom mpu6050 offsets
     mpu.setXGyroOffset(-14);//-14
@@ -184,20 +191,39 @@ void loop() {
   if (!dmpReady) return;
   Serial.println("Flight Controller is executing.");
 
+  //calibrate
+  delay(10000);
+  ESCm1.writeMicroseconds(2000);
+  ESCm2.writeMicroseconds(2000);
+  ESCm3.writeMicroseconds(2000);
+  ESCm4.writeMicroseconds(2000);
+  delay(10000);
+  ESCm1.writeMicroseconds(700);
+  ESCm2.writeMicroseconds(700);
+  ESCm3.writeMicroseconds(700);
+  ESCm4.writeMicroseconds(700);
+  delay(4000);
+
+
   //timing loop
   int ticks = 0;
   long lastTimer = millis();
+  long loopStart = millis();
   while (true) {
     
     //if ((micros() - lastRunTime) >= updateInterval) {
       ticks++; lastRunTime = micros();
       tick();
     //}
-    if (millis() - lastTimer >= 200) { //update counters and log information when second passes
-      lastTimer += 200;
+    if (millis() - lastTimer >= 500) { //update counters and log information when second passes
+      //lastTimer += 500;
       //Serial.println(ticks);
-      sendLogMsg();
+      //sendLogMsg();
       ticks = 0;
+
+      if(millis() - loopStart >= 30000) {
+        exit(1);
+      }
     }
   }
 }
@@ -227,7 +253,7 @@ void updateFlightPlan() { //calculate adjustments according to sensor data
 
   calculateRotorAdjustments();
 
-  //sendAdjustedRotorSpeed();
+  sendAdjustedRotorSpeed();
 }
 
 
@@ -237,19 +263,19 @@ void calculateRotorAdjustments() {
 
   m1New = currentStableThrottle 
   + (-roll) //roll
-  + (-pitch) //pitch
+  + (pitch) //pitch
   + (0); //yaw
   m2New = currentStableThrottle
   + (roll) //roll
-  + (-pitch) //pitch
+  + (pitch) //pitch
   + (0); //yaw
   m3New = currentStableThrottle
   + (roll) //roll
-  + (pitch) //pitch
+  + (-pitch) //pitch
   + (0); //yaw
   m4New = currentStableThrottle
   + (-roll) //roll
-  + (pitch) //pitch
+  + (-pitch) //pitch
   + (0); //yaw
 
   if (m1New > 100) { m1New = 100; } if (m2New > 100) { m2New = 100; } if (m3New > 100) { m3New = 100; } if (m4New > 100) { m4New = 100; }
@@ -265,10 +291,17 @@ void calculateRotorAdjustments() {
 //sends the new throttle values to the rotors
 void sendAdjustedRotorSpeed() {
   //map throttle levels and set new servo speeds (throttles are 0 to 100%)
-  ESCm1.write(map(m1Throttle, 0, 1023, 0, 100));
-  ESCm2.write(map(m2Throttle, 0, 1023, 0, 100));
-  ESCm3.write(map(m3Throttle, 0, 1023, 0, 100));
-  ESCm4.write(map(m4Throttle, 0, 1023, 0, 100));
+
+delay(50);
+
+  Serial.print(map(m1Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+  Serial.print(map(m2Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+  Serial.print(map(m3Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+  Serial.println(map(m4Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+    ESCm1.writeMicroseconds(map(m1Throttle, 0, 100, 700, 2000));
+    ESCm2.writeMicroseconds(map(m2Throttle, 0, 100, 700, 2000));
+    ESCm3.writeMicroseconds(map(m3Throttle, 0, 100, 700, 2000));
+    ESCm4.writeMicroseconds(map(m4Throttle, 0, 100, 700, 2000));
 }
 
 
