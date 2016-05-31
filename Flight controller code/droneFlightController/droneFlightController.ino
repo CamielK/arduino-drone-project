@@ -54,9 +54,10 @@ float m1Throttle = 0; //front left rotor
 float m2Throttle = 0; //front right rotor
 float m3Throttle = 0; //back right rotor
 float m4Throttle = 0; //back left rotor
+boolean enginesArmed = false;
 
 
-float currentStableThrottle = 40; //used to store the current stable throttle level. forms a baseline for rotor adjustment
+float currentStableThrottle = 10; //used to store the current stable throttle level. forms a baseline for rotor adjustment
 //throttle 40 = grounded
 //throttle 60 = heavy liftoff
 
@@ -87,11 +88,15 @@ void dmpDataReady() {
 
 
 //Create an instance for the radio, specifying the CE and CS pins.
-RF24 myRadio (3, 4);
+RF24 myRadio (9, 10);
 byte addresses[][6] = {"1Node","2Node"};
 int dataReceived;  // Data that will be received from the transmitter
 int dataTransmitted;  // Data that will be Transmitted from the transmitter
 
+
+//radio test vars
+int transmissions = 0;
+int failedTransmissions = 0;
 
 void setup() {
 
@@ -191,20 +196,6 @@ void loop() {
   if (!dmpReady) return;
   Serial.println("Flight Controller is executing.");
 
-  //calibrate
-  delay(10000);
-  ESCm1.writeMicroseconds(2000);
-  ESCm2.writeMicroseconds(2000);
-  ESCm3.writeMicroseconds(2000);
-  ESCm4.writeMicroseconds(2000);
-  delay(10000);
-  ESCm1.writeMicroseconds(700);
-  ESCm2.writeMicroseconds(700);
-  ESCm3.writeMicroseconds(700);
-  ESCm4.writeMicroseconds(700);
-  delay(4000);
-
-
   //timing loop
   int ticks = 0;
   long lastTimer = millis();
@@ -215,13 +206,14 @@ void loop() {
       ticks++; lastRunTime = micros();
       tick();
     //}
-    if (millis() - lastTimer >= 500) { //update counters and log information when second passes
-      //lastTimer += 500;
-      //Serial.println(ticks);
+    if (millis() - lastTimer >= 1000) { //update counters and log information when second passes
+      lastTimer = millis();
+      Serial.println(ticks);
+      //sendMessageToBS(ticks);
       //sendLogMsg();
       ticks = 0;
 
-      if(millis() - loopStart >= 30000) {
+      if(millis() - loopStart >= 60000) {
         exit(1);
       }
     }
@@ -261,21 +253,25 @@ void updateFlightPlan() { //calculate adjustments according to sensor data
 void calculateRotorAdjustments() {
   float m1New, m2New, m3New, m4New;
 
+  //use two tenths of offsets as adjustor values
+  float adjustedRoll = roll*0.2;
+  float adjustedPitch = pitch*0.2;
+
   m1New = currentStableThrottle 
-  + (-roll) //roll
-  + (pitch) //pitch
+  + (-adjustedRoll) //roll
+  + (adjustedPitch) //pitch
   + (0); //yaw
   m2New = currentStableThrottle
-  + (roll) //roll
-  + (pitch) //pitch
+  + (adjustedRoll) //roll
+  + (adjustedPitch) //pitch
   + (0); //yaw
   m3New = currentStableThrottle
-  + (roll) //roll
-  + (-pitch) //pitch
+  + (adjustedRoll) //roll
+  + (-adjustedPitch) //pitch
   + (0); //yaw
   m4New = currentStableThrottle
-  + (-roll) //roll
-  + (-pitch) //pitch
+  + (-adjustedRoll) //roll
+  + (-adjustedPitch) //pitch
   + (0); //yaw
 
   if (m1New > 100) { m1New = 100; } if (m2New > 100) { m2New = 100; } if (m3New > 100) { m3New = 100; } if (m4New > 100) { m4New = 100; }
@@ -292,30 +288,74 @@ void calculateRotorAdjustments() {
 void sendAdjustedRotorSpeed() {
   //map throttle levels and set new servo speeds (throttles are 0 to 100%)
 
-delay(50);
+  delay(10);
 
-  Serial.print(map(m1Throttle, 0, 100, 700, 2000)); Serial.print(", ");
-  Serial.print(map(m2Throttle, 0, 100, 700, 2000)); Serial.print(", ");
-  Serial.print(map(m3Throttle, 0, 100, 700, 2000)); Serial.print(", ");
-  Serial.println(map(m4Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+//  Serial.print(map(m1Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+//  Serial.print(map(m2Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+//  Serial.print(map(m3Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+//  Serial.println(map(m4Throttle, 0, 100, 700, 2000)); Serial.print(", ");
+
+  if (enginesArmed) {
     ESCm1.writeMicroseconds(map(m1Throttle, 0, 100, 700, 2000));
     ESCm2.writeMicroseconds(map(m2Throttle, 0, 100, 700, 2000));
     ESCm3.writeMicroseconds(map(m3Throttle, 0, 100, 700, 2000));
     ESCm4.writeMicroseconds(map(m4Throttle, 0, 100, 700, 2000));
+  }
+
 }
 
 
 //check for controller input
 void checkBaseStationFeedback() {
 
-  //if data.available {
-  //}
-
-  //throttleInput = ;
-  //yawInput = ;
-  //rollInput = ;
-  //
   
+
+  if ( myRadio.available()) // Check for incoming data from transmitter
+    {
+      float dataReceived; 
+      while (myRadio.available())  // While there is data ready
+      {
+        myRadio.read( &dataReceived, sizeof(dataReceived) ); // Get the data payload (You must have defined that already!)
+      }
+      
+      Serial.print("====================   ");
+      Serial.print(dataReceived);
+      Serial.println("   ====================");
+
+      //arm engines = E
+      if (dataReceived==69) {
+        startEngines();
+        enginesArmed = true;
+        Serial.println("engines armed");
+      }
+
+      //kill engines = X
+      if (dataReceived==88) {
+        shutdownEngines();
+        enginesArmed = false;
+        Serial.println("shutdown engines...");
+      }
+
+      //increase throttle = W
+      if (dataReceived==87) {
+        currentStableThrottle = currentStableThrottle + 3;
+        if (currentStableThrottle >80) {currentStableThrottle = 80;}
+        Serial.println("increased throttle. new throttle: " + String(currentStableThrottle));
+      }
+
+      //decrease throttle = S
+      if (dataReceived==83) {
+        currentStableThrottle = currentStableThrottle - 3;
+        if (currentStableThrottle < 0) {currentStableThrottle = 0;}
+        Serial.println("decreased throttle. new throttle: " + String(currentStableThrottle));
+      }
+
+      //decrease throttle = S
+      if (dataReceived==84) {
+        sendMessageToBS(696969);
+        Serial.println("sending test response...");
+      }
+    }
 }
 
 float getCompassReading() {
@@ -441,22 +481,57 @@ void sendLogMsg() {
   logMsgt[7] = m3Throttle + 80000; //m3Throttle
   logMsgt[8] = m4Throttle + 90000; //m4Throttle
 
-  //Serial.print("1");
-  myRadio.stopListening();
-  //Serial.print("2");
+
   int test1 = 100;
-  //Serial.print("3");
   for (int i =0; i < dataSize; i++) {
+    myRadio.stopListening();
     if (!myRadio.write( &logMsgt[i], sizeof(logMsgt[i]))){
         String msg = String(i)+" Failed";
        Serial.println(msg);
-     }
+       delay(5);
+    }
+    myRadio.startListening();
   }
-  //Serial.print("4");
-  myRadio.startListening();
-  //Serial.println("5");
+
+  
 }
 
+void sendMessageToBS(float msg) {
+  
+  myRadio.stopListening();
+
+  transmissions++;
+  if (!myRadio.write( &msg, sizeof(msg))){
+    failedTransmissions++;
+    String exception = "transmission " + String(transmissions) + " failed. total failures: " + String(failedTransmissions) + ".";
+    Serial.println(exception);
+  }
+  myRadio.startListening();
+}
+
+
+void startEngines() {
+    //calibrate
+    delay(10000);
+    ESCm1.writeMicroseconds(2000);
+    ESCm2.writeMicroseconds(2000);
+    ESCm3.writeMicroseconds(2000);
+    ESCm4.writeMicroseconds(2000);
+    delay(10000);
+    ESCm1.writeMicroseconds(700);
+    ESCm2.writeMicroseconds(700);
+    ESCm3.writeMicroseconds(700);
+    ESCm4.writeMicroseconds(700);
+    delay(4000);
+}
+
+
+void shutdownEngines() {
+    ESCm1.writeMicroseconds(0);
+    ESCm2.writeMicroseconds(0);
+    ESCm3.writeMicroseconds(0);
+    ESCm4.writeMicroseconds(0);
+}
 
 
 

@@ -21,6 +21,9 @@ byte addresses[][6] = {"1Node","2Node"};
 float dataReceived;  // Data that will be received from the transmitter
 int dataTransmitted;  // Data that will be Transmitted from the transmitter
 
+//radio test vars
+int transmissions = 0;
+int failedTransmissions = 0;
 
 //current metrics
 float heading = 0; //heading in degrees from magnetic north
@@ -60,6 +63,8 @@ void setup() {
 
 void loop() {
 
+  
+
   Serial.println("Base station is executing.");
 
   //timing loop
@@ -69,10 +74,11 @@ void loop() {
     
     ticks++; lastRunTime = micros();
     tick();
-    if (millis() - lastTimer >= 300) { //update counters and log information when second passes
-      lastTimer += 200;
+    if (millis() - lastTimer >= 500) { //update counters and log information when second passes
+      lastTimer = millis();
       //Serial.println(ticks);
-      sendLogMsg();
+      //sendLogMsg();
+      //sendMessageToFC(ticks);
       ticks = 0;
     }
   }
@@ -91,6 +97,13 @@ void tick() {
 void checkPcInput() {
     //check for pc serial input
     if ( Serial.available() ) {
+
+      int input = Serial.read();
+      Serial.println("received input: " + String(input));
+      
+      float c = toupper(input);
+      sendMessageToFC(c);
+      
     //    char c = toupper(Serial.read());
     //    if ( c == 'T' && role == 0 ){      
     //      Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
@@ -106,6 +119,21 @@ void checkPcInput() {
     }
 }
 
+
+void sendMessageToFC(float msg) {
+  
+  myRadio.stopListening();
+
+  transmissions++;
+  if (!myRadio.write( &msg, sizeof(msg))){
+    failedTransmissions++;
+    String exception = "transmission " + String(transmissions) + " failed. total failures: " + String(failedTransmissions) + ".";
+    Serial.println(exception);
+  }
+  myRadio.startListening();
+}
+
+
 void forwardPcInput() {
     //forward pc input to flight controller
     //myRadio.stopListening();
@@ -119,22 +147,24 @@ void checkFCInput() {
     //check for flight controller log message
     if ( myRadio.available()) // Check for incoming data from transmitter
     {
+      float dataReceived; 
       while (myRadio.available())  // While there is data ready
       {
         myRadio.read( &dataReceived, sizeof(dataReceived) ); // Get the data payload (You must have defined that already!)
       }
-      // DO something with the data, like print it
-      //Serial.print("Data received = ");
-      //Serial.print(dataReceived);
-      if ((dataReceived - 10000) < 500) { heading = dataReceived - 10000; } //heading
-      else if ((dataReceived - 20000) < 500) { elevation = dataReceived - 20000; } //elevation
-      else if ((dataReceived - 30000) < 500) { yaw = dataReceived - 30000; } //yaw
-      else if ((dataReceived - 40000) < 500) { pitch = dataReceived - 40000; } //pitch
-      else if ((dataReceived - 50000) < 500) { roll = dataReceived - 50000; } //roll
-      else if ((dataReceived - 60000) < 500) { m1Throttle = dataReceived - 60000; } //m1t
-      else if ((dataReceived - 70000) < 500) { m2Throttle = dataReceived - 70000; } //m2t
-      else if ((dataReceived - 80000) < 500) { m3Throttle = dataReceived - 80000; } //m3t
-      else if ((dataReceived - 90000) < 500) { m4Throttle = dataReceived - 90000; } //m4t
+      Serial.print("====================   ");
+      Serial.print(dataReceived);
+      Serial.println("   ====================");
+      
+//      if ((dataReceived - 10000) < 500) { heading = dataReceived - 10000; } //heading
+//      else if ((dataReceived - 20000) < 500) { elevation = dataReceived - 20000; } //elevation
+//      else if ((dataReceived - 30000) < 500) { yaw = dataReceived - 30000; } //yaw
+//      else if ((dataReceived - 40000) < 500) { pitch = dataReceived - 40000; } //pitch
+//      else if ((dataReceived - 50000) < 500) { roll = dataReceived - 50000; } //roll
+//      else if ((dataReceived - 60000) < 500) { m1Throttle = dataReceived - 60000; } //m1t
+//      else if ((dataReceived - 70000) < 500) { m2Throttle = dataReceived - 70000; } //m2t
+//      else if ((dataReceived - 80000) < 500) { m3Throttle = dataReceived - 80000; } //m3t
+//      else if ((dataReceived - 90000) < 500) { m4Throttle = dataReceived - 90000; } //m4t
     } //END Radio available
 }
 
