@@ -78,7 +78,7 @@ void loop() {
       lastTimer = millis();
       //Serial.println(ticks);
       //sendLogMsg();
-      //sendMessageToFC(ticks);
+      sendMessageToFC(ticks);
       ticks = 0;
     }
   }

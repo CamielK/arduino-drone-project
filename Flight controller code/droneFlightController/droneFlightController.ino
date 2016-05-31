@@ -88,7 +88,7 @@ void dmpDataReady() {
 
 
 //Create an instance for the radio, specifying the CE and CS pins.
-RF24 myRadio (9, 10);
+RF24 myRadio (3, 4);
 byte addresses[][6] = {"1Node","2Node"};
 int dataReceived;  // Data that will be received from the transmitter
 int dataTransmitted;  // Data that will be Transmitted from the transmitter
@@ -99,6 +99,7 @@ int transmissions = 0;
 int failedTransmissions = 0;
 
 void setup() {
+
 
   delay(3000);
   
@@ -140,6 +141,17 @@ void setup() {
     ESCm2.attach(10);
     ESCm3.attach(9);
     ESCm4.attach(8);
+
+    ESCm1.write(180);
+    ESCm2.write(180);
+    ESCm3.write(180);
+    ESCm4.write(180);
+    delay(10000);
+    ESCm1.write(0);
+    ESCm2.write(0);
+    ESCm3.write(0);
+    ESCm4.write(0);
+    delay(4000);
 
     //set custom mpu6050 offsets
     mpu.setXGyroOffset(-14);//-14
@@ -196,6 +208,21 @@ void loop() {
   if (!dmpReady) return;
   Serial.println("Flight Controller is executing.");
 
+    //calibrate
+//    delay(4000);
+//    ESCm1.writeMicroseconds(2000);
+//    ESCm2.writeMicroseconds(2000);
+//    ESCm3.writeMicroseconds(2000);
+//    ESCm4.writeMicroseconds(2000);
+//    delay(10000);
+//    ESCm1.writeMicroseconds(700);
+//    ESCm2.writeMicroseconds(700);
+//    ESCm3.writeMicroseconds(700);
+//    ESCm4.writeMicroseconds(700);
+//    delay(4000);
+
+    shutdownEngines();
+
   //timing loop
   int ticks = 0;
   long lastTimer = millis();
@@ -214,7 +241,7 @@ void loop() {
       ticks = 0;
 
       if(millis() - loopStart >= 60000) {
-        exit(1);
+        //exit(1);
       }
     }
   }
@@ -288,7 +315,7 @@ void calculateRotorAdjustments() {
 void sendAdjustedRotorSpeed() {
   //map throttle levels and set new servo speeds (throttles are 0 to 100%)
 
-  delay(10);
+  delay(25);
 
 //  Serial.print(map(m1Throttle, 0, 100, 700, 2000)); Serial.print(", ");
 //  Serial.print(map(m2Throttle, 0, 100, 700, 2000)); Serial.print(", ");
@@ -335,6 +362,7 @@ void checkBaseStationFeedback() {
         enginesArmed = false;
         Serial.println("shutdown engines...");
       }
+       // exit(1);
 
       //increase throttle = W
       if (dataReceived==87) {
@@ -350,9 +378,9 @@ void checkBaseStationFeedback() {
         Serial.println("decreased throttle. new throttle: " + String(currentStableThrottle));
       }
 
-      //decrease throttle = S
+      //test = T
       if (dataReceived==84) {
-        sendMessageToBS(696969);
+        //sendMessageToBS(6969);
         Serial.println("sending test response...");
       }
     }
@@ -511,18 +539,11 @@ void sendMessageToBS(float msg) {
 
 
 void startEngines() {
-    //calibrate
-    delay(10000);
-    ESCm1.writeMicroseconds(2000);
-    ESCm2.writeMicroseconds(2000);
-    ESCm3.writeMicroseconds(2000);
-    ESCm4.writeMicroseconds(2000);
-    delay(10000);
     ESCm1.writeMicroseconds(700);
     ESCm2.writeMicroseconds(700);
     ESCm3.writeMicroseconds(700);
     ESCm4.writeMicroseconds(700);
-    delay(4000);
+    delay(10);
 }
 
 
@@ -531,6 +552,7 @@ void shutdownEngines() {
     ESCm2.writeMicroseconds(0);
     ESCm3.writeMicroseconds(0);
     ESCm4.writeMicroseconds(0);
+    delay(10);
 }
 
 
