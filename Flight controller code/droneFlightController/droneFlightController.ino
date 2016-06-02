@@ -38,6 +38,7 @@ Servo ESCm2; // front right rotor
 Servo ESCm3; // back right rotor
 Servo ESCm4; // back left rotor
 
+
 //timing variables
 unsigned long lastRunTime = micros();
 int logicUpdatesPerSecond = 60;
@@ -55,9 +56,10 @@ float m2Throttle = 0; //front right rotor
 float m3Throttle = 0; //back right rotor
 float m4Throttle = 0; //back left rotor
 boolean enginesArmed = false;
+boolean firstStart = true;
 
 
-float currentStableThrottle = 10; //used to store the current stable throttle level. forms a baseline for rotor adjustment
+float currentStableThrottle = 0; //used to store the current stable throttle level. forms a baseline for rotor adjustment
 //throttle 40 = grounded
 //throttle 60 = heavy liftoff
 
@@ -136,22 +138,7 @@ void setup() {
     sensor_t sensor;
     compass.getSensor(&sensor);
 
-    //initialize rotor ESC adresses
-    ESCm1.attach(5);
-    ESCm2.attach(10);
-    ESCm3.attach(9);
-    ESCm4.attach(8);
 
-    ESCm1.write(180);
-    ESCm2.write(180);
-    ESCm3.write(180);
-    ESCm4.write(180);
-    delay(10000);
-    ESCm1.write(0);
-    ESCm2.write(0);
-    ESCm3.write(0);
-    ESCm4.write(0);
-    delay(4000);
 
     //set custom mpu6050 offsets
     mpu.setXGyroOffset(-14);//-14
@@ -236,12 +223,12 @@ void loop() {
     if (millis() - lastTimer >= 1000) { //update counters and log information when second passes
       lastTimer = millis();
       Serial.println(ticks);
-      //sendMessageToBS(ticks);
+      //sendMessageToBS(currentStableThrottle);
       //sendLogMsg();
       ticks = 0;
 
-      if(millis() - loopStart >= 60000) {
-        //exit(1);
+      if(millis() - loopStart >= 90000) {
+        exit(1);
       }
     }
   }
@@ -281,8 +268,8 @@ void calculateRotorAdjustments() {
   float m1New, m2New, m3New, m4New;
 
   //use two tenths of offsets as adjustor values
-  float adjustedRoll = roll*0.2;
-  float adjustedPitch = pitch*0.2;
+  float adjustedRoll = roll*0.3;
+  float adjustedPitch = pitch*0.3;
 
   m1New = currentStableThrottle 
   + (-adjustedRoll) //roll
@@ -349,14 +336,20 @@ void checkBaseStationFeedback() {
       Serial.print(dataReceived);
       Serial.println("   ====================");
 
-      //arm engines = E
+      //arm engines = e
       if (dataReceived==69) {
         startEngines();
         enginesArmed = true;
         Serial.println("engines armed");
       }
 
-      //kill engines = X
+      //calibrate engines = c
+      if (dataReceived==67) {
+        calibrateEngines();
+        Serial.println("engines calibrated");
+      }
+
+      //kill engines = x
       if (dataReceived==88) {
         shutdownEngines();
         enginesArmed = false;
@@ -364,21 +357,21 @@ void checkBaseStationFeedback() {
       }
        // exit(1);
 
-      //increase throttle = W
+      //increase throttle = w
       if (dataReceived==87) {
         currentStableThrottle = currentStableThrottle + 3;
-        if (currentStableThrottle >80) {currentStableThrottle = 80;}
+        if (currentStableThrottle >90) {currentStableThrottle = 90;}
         Serial.println("increased throttle. new throttle: " + String(currentStableThrottle));
       }
 
-      //decrease throttle = S
+      //decrease throttle = s
       if (dataReceived==83) {
         currentStableThrottle = currentStableThrottle - 3;
         if (currentStableThrottle < 0) {currentStableThrottle = 0;}
         Serial.println("decreased throttle. new throttle: " + String(currentStableThrottle));
       }
 
-      //test = T
+      //test = t
       if (dataReceived==84) {
         //sendMessageToBS(6969);
         Serial.println("sending test response...");
@@ -539,6 +532,15 @@ void sendMessageToBS(float msg) {
 
 
 void startEngines() {
+    //initialize rotor ESC adresses
+    if (firstStart) {
+      firstStart = false;
+      ESCm1.attach(5);
+      ESCm2.attach(10);
+      ESCm3.attach(9);
+      ESCm4.attach(8);
+    }
+    
     ESCm1.writeMicroseconds(700);
     ESCm2.writeMicroseconds(700);
     ESCm3.writeMicroseconds(700);
@@ -553,10 +555,43 @@ void shutdownEngines() {
     ESCm3.writeMicroseconds(0);
     ESCm4.writeMicroseconds(0);
     delay(10);
+    currentStableThrottle = 0;
 }
 
 
+void calibrateEngines() {
+    if (!firstStart) {
+      ESCm1.detach();
+      ESCm2.detach();
+      ESCm3.detach();
+      ESCm4.detach();
 
+      delay(1000);
+    }
+    
+      ESCm1.attach(5);
+      ESCm2.attach(10);
+      ESCm3.attach(9);
+      ESCm4.attach(8);
+
+      //TODO allow for base station intterrupt during calibration if something is wrong.
+      //add custom delay function that takes a delay in microseconds and keeps checking base station input untill the given time has passed?
+
+      
+      ESCm1.write(180);
+      ESCm2.write(180);
+      ESCm3.write(180);
+      ESCm4.write(180);
+      delay(10000);
+      ESCm1.write(0);
+      ESCm2.write(0);
+      ESCm3.write(0);
+      ESCm4.write(0);
+      delay(4000);
+
+    
+      
+}
 
 
 
